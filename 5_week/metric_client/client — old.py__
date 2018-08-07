@@ -1,0 +1,54 @@
+import os
+import time
+import socket
+import json
+
+
+class SocketManager:
+
+    def __init__(self, address, timeout=None):
+        self.address = address
+        self.timeout = timeout
+
+    def __enter__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect(self.address) #, self.timeout
+        return self.sock
+
+    def __exit__(self, *ignore):
+        self.sock.close()
+
+
+class Client:
+    def __init__(self, host, port, timeout=None):
+        self.address = (host, port)
+        self.timeout = timeout
+
+    def put(self, m_name, m_value, timestamp=int(time.time())):
+        mess = ' '.join(('put', m_name, str(m_value), str(timestamp), '\n'))
+        answ = self.exchange(mess)
+        if answ != 'ok\n\n':
+            raise ClientError
+
+    def get(self, key):
+        mess = ' '.join(('get', key, '\n'))
+
+    def exchange(self, mess):
+        try:
+            with SocketManager(self.address, self.timeout) as sock:
+                sock.send(mess.encode("utf8"))
+                answer = bytearray()
+                while True:
+                    data = sock.recv(1024)
+                    if not data:
+                        break
+                    answer.extend(data)
+        except ConnectionRefusedError:
+            raise ClientError
+        else:
+            return answer.decode("utf8")
+
+
+class ClientError(OSError):
+    """Socket exception"""
+
